@@ -13,6 +13,11 @@ async function bootstrap(): Promise<Server> {
   const adapter = new ExpressAdapter(expressApp);
 
   const app = await NestFactory.create(AppModule, adapter);
+  app.enableCors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: '*',
+  });
   await app.init();
 
   return createServer(expressApp);
@@ -22,9 +27,16 @@ export const handler: Handler = async (
   event: APIGatewayProxyEvent,
   context: Context,
 ) => {
-  if (!cachedServer) {
-    cachedServer = await bootstrap();
-  }
+  try {
+    if (!cachedServer) {
+      console.log('Starting server...');
 
-  return proxy(cachedServer, event, context, 'PROMISE').promise;
+      cachedServer = await bootstrap();
+    }
+
+    return proxy(cachedServer, event, context, 'PROMISE').promise;
+  } catch (error) {
+    console.error('Handler error:', error);
+    throw error;
+  }
 };
