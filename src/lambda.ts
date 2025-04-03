@@ -1,40 +1,41 @@
-import { Handler, Context, APIGatewayProxyEvent } from 'aws-lambda';
 import { NestFactory } from '@nestjs/core';
+import { configure } from '@codegenie/serverless-express';
+import { Callback, Context, Handler } from 'aws-lambda';
+import helmet from 'helmet';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
 import { AppModule } from './app.module';
-import { Server } from 'http';
-import { createServer, proxy } from 'aws-serverless-express';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import express from 'express';
 
-let cachedServer: Server;
+let server: Handler;
+const port = process.env.APP_PORT || 4000;
 
-async function bootstrap(): Promise<Server> {
-  const expressApp = express();
-  const adapter = new ExpressAdapter(expressApp);
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
 
-  const app = await NestFactory.create(AppModule, adapter);
-  app.enableCors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: '*',
-  });
+  app.use(helmet());
+
   await app.init();
 
-  return createServer(expressApp);
+  const expressApp = app.getHttpAdapter().getInstance();
+  return configure({ app: expressApp });
 }
 
-export const handler: Handler = async (
-  event: APIGatewayProxyEvent,
+export const handler = async (
+  event: any,
   context: Context,
+  callback: Callback,
 ) => {
   try {
-    if (!cachedServer) {
-      console.log('Starting server...');
+    console.log(`Starting server on port ${port}`);
 
-      cachedServer = await bootstrap();
+    if (!server) {
+      server = await bootstrap();
     }
 
-    return proxy(cachedServer, event, context, 'PROMISE').promise;
+    return await server(event, context, callback);
+
   } catch (error) {
     console.error('Handler error:', error);
     throw error;

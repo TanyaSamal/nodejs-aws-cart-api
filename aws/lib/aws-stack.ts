@@ -44,7 +44,12 @@ export class AwsStack extends cdk.Stack {
         DB_PASS: process.env.DB_PASS!,
       },
       bundling: {
-        externalModules: ['aws-sdk', 'class-transformer', 'class-validator'],
+        externalModules: [
+          '@aws-sdk/*',
+          'aws-sdk',
+          'class-transformer',
+          'class-validator',
+        ],
         nodeModules: [
           '@nestjs/core',
           '@nestjs/common',
