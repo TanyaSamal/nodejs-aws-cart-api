@@ -77,6 +77,18 @@ export class CartService {
     return this.cartRepository.save(userCart);
   }
 
+  async updateCartStatusByUserId(
+    userId: string,
+    status: CartStatus,
+  ): Promise<Cart> {
+    const userCart = await this.findByUserId(userId);
+
+    userCart.status = status;
+    userCart.updated_at = new Date(Date.now());
+
+    return this.cartRepository.save(userCart);
+  }
+
   async removeByUserId(userId): Promise<void> {
     const userCart = await this.findByUserId(userId);
 

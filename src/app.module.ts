@@ -9,6 +9,7 @@ import { CartItem } from './entities/CartItem.entity';
 import { Cart } from './entities/Cart.entity';
 import { User } from './entities/User.entity';
 import * as dotenv from 'dotenv';
+import { Order } from './entities/Order.entity';
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ dotenv.config();
       username: process.env.DB_USER,
       password: process.env.DB_PASS,
       database: process.env.DB_NAME,
-      entities: [Cart, CartItem, User],
+      entities: [Cart, CartItem, User, Order],
       synchronize: false,
       ssl: {
         rejectUnauthorized: false,

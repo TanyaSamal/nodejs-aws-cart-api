@@ -11,12 +11,13 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { BasicAuthGuard } from '../auth';
-import { Order, OrderService } from '../order';
 import { AppRequest, getUserIdFromRequest } from '../shared';
-import { calculateCartTotal } from './models-rules';
+import { OrderService } from '../order';
 import { CartService } from './services';
-import { CartItem } from '../entities/CartItem.entity';
 import { CreateOrderDto, PutCartPayload } from 'src/order/type';
+import { CartItem } from '../entities/CartItem.entity';
+import { Order } from 'src/entities/Order.entity';
+import { CartStatus } from 'src/entities/Cart.entity';
 
 @Controller('api/profile/cart')
 export class CartController {
@@ -25,8 +26,7 @@ export class CartController {
     private orderService: OrderService,
   ) {}
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseGuards(BasicAuthGuard)
+  @UseGuards(BasicAuthGuard)
   @Get()
   async findUserCart(@Req() req: AppRequest): Promise<CartItem[]> {
     const cart = await this.cartService.findOrCreateByUserId(
@@ -36,8 +36,7 @@ export class CartController {
     return cart.cartItems;
   }
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseGuards(BasicAuthGuard)
+  @UseGuards(BasicAuthGuard)
   @Put()
   async updateUserCart(
     @Req() req: AppRequest,
@@ -52,16 +51,14 @@ export class CartController {
     return cart.cartItems;
   }
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseGuards(BasicAuthGuard)
+  @UseGuards(BasicAuthGuard)
   @Delete()
   @HttpCode(HttpStatus.OK)
   async clearUserCart(@Req() req: AppRequest) {
     await this.cartService.removeByUserId(getUserIdFromRequest(req));
   }
 
-  // @UseGuards(JwtAuthGuard)
-  // @UseGuards(BasicAuthGuard)
+  @UseGuards(BasicAuthGuard)
   @Put('order')
   async checkout(@Req() req: AppRequest, @Body() body: CreateOrderDto) {
     const userId = getUserIdFromRequest(req);
@@ -71,25 +68,28 @@ export class CartController {
       throw new BadRequestException('Cart is empty');
     }
 
-    // const total = calculateCartTotal(items);
-    const order = this.orderService.create({
-      userId,
-      cartId: cart.id,
-      items: cart.cartItems.map(({ product_id, count }) => ({
-        productId: product_id,
+    const order = await this.orderService.create({
+      user_id: userId,
+      cart_id: cart.id,
+      items: body.items.map(({ productId, count }) => ({
+        productId: productId,
         count,
       })),
       address: body.address,
-      total: 0,
+      total: body.total,
+      payment: body.payment,
+      delivery: body.delivery,
+      comments: body.address.comment,
     });
-    this.cartService.removeByUserId(userId);
+
+    await this.cartService.updateCartStatusByUserId(userId, CartStatus.ORDERED);
 
     return {
       order,
     };
   }
 
-  // @UseGuards(BasicAuthGuard)
+  @UseGuards(BasicAuthGuard)
   @Get('order')
   async getOrder(): Promise<Order[]> {
     return await this.orderService.getAll();
