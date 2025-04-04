@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { CreateOrderPayload, OrderStatus } from '../type';
 import { Order } from 'src/entities/Order.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 
 @Injectable()
 export class OrderService {
@@ -20,9 +20,15 @@ export class OrderService {
     return await this.orderRepository.findOneBy({ id: orderId });
   }
 
-  async create(data: CreateOrderPayload): Promise<Order> {
+  async create(
+    data: CreateOrderPayload,
+    manager?: EntityManager,
+  ): Promise<Order> {
+    const orderRepository = manager
+      ? manager.getRepository(Order)
+      : this.orderRepository;
     const id = randomUUID() as string;
-    const order: Order = await this.orderRepository.create({
+    const order: Order = await orderRepository.create({
       id,
       ...data,
       status: OrderStatus.Open,

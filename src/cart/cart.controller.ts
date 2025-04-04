@@ -18,10 +18,12 @@ import { CreateOrderDto, PutCartPayload } from 'src/order/type';
 import { CartItem } from '../entities/CartItem.entity';
 import { Order } from 'src/entities/Order.entity';
 import { CartStatus } from 'src/entities/Cart.entity';
+import { DataSource } from 'typeorm';
 
 @Controller('api/profile/cart')
 export class CartController {
   constructor(
+    private readonly dataSource: DataSource,
     private cartService: CartService,
     private orderService: OrderService,
   ) {}
@@ -62,31 +64,52 @@ export class CartController {
   @Put('order')
   async checkout(@Req() req: AppRequest, @Body() body: CreateOrderDto) {
     const userId = getUserIdFromRequest(req);
-    const cart = await this.cartService.findByUserId(userId);
 
-    if (!(cart && cart.cartItems.length)) {
-      throw new BadRequestException('Cart is empty');
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const cart = await this.cartService.findByUserId(userId);
+
+      if (!(cart && cart.cartItems.length)) {
+        throw new BadRequestException('Cart is empty');
+      }
+
+      const order = await this.orderService.create(
+        {
+          user_id: userId,
+          cart_id: cart.id,
+          items: body.items.map(({ productId, count }) => ({
+            productId: productId,
+            count,
+          })),
+          address: body.address,
+          total: body.total,
+          payment: body.payment,
+          delivery: body.delivery,
+          comments: body.address.comment,
+        },
+        queryRunner.manager,
+      );
+
+      await this.cartService.updateCartStatusByUserId(
+        userId,
+        CartStatus.ORDERED,
+        queryRunner.manager,
+      );
+
+      await queryRunner.commitTransaction();
+
+      return {
+        order,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-
-    const order = await this.orderService.create({
-      user_id: userId,
-      cart_id: cart.id,
-      items: body.items.map(({ productId, count }) => ({
-        productId: productId,
-        count,
-      })),
-      address: body.address,
-      total: body.total,
-      payment: body.payment,
-      delivery: body.delivery,
-      comments: body.address.comment,
-    });
-
-    await this.cartService.updateCartStatusByUserId(userId, CartStatus.ORDERED);
-
-    return {
-      order,
-    };
   }
 
   @UseGuards(BasicAuthGuard)

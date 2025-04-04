@@ -4,7 +4,7 @@ import { PutCartPayload } from 'src/order/type';
 import { Cart, CartStatus } from '../../entities/Cart.entity';
 import { CartItem } from '../../entities/CartItem.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 
 @Injectable()
 export class CartService {
@@ -80,13 +80,21 @@ export class CartService {
   async updateCartStatusByUserId(
     userId: string,
     status: CartStatus,
-  ): Promise<Cart> {
-    const userCart = await this.findByUserId(userId);
+    manager?: EntityManager,
+  ): Promise<void> {
+    const cartRepository = manager
+      ? manager.getRepository(Cart)
+      : this.cartRepository;
+    const userCart = await cartRepository.findOneBy({ user_id: userId });
+
+    if (!userCart) {
+      throw new Error('Cart not found');
+    }
 
     userCart.status = status;
     userCart.updated_at = new Date(Date.now());
 
-    return this.cartRepository.save(userCart);
+    await this.cartRepository.save(userCart);
   }
 
   async removeByUserId(userId): Promise<void> {
