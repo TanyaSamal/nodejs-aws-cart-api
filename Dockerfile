@@ -34,4 +34,4 @@ RUN --mount=type=cache,target=/root/.npm npm ci --only=production
 EXPOSE 4000
 
 # Set the default command to run the application
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/main"]

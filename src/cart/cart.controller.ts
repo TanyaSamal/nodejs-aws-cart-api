@@ -90,7 +90,7 @@ export class CartController {
     };
   }
 
-  @UseGuards(BasicAuthGuard)
+  // @UseGuards(BasicAuthGuard)
   @Get('order')
   getOrder(): Order[] {
     return this.orderService.getAll();
