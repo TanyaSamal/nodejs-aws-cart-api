@@ -28,13 +28,11 @@ export type PutCartPayload = {
 };
 
 export type CreateOrderPayload = {
-  user_id: string;
-  cart_id: string;
+  userId: string;
+  cartId: string;
   items: Array<{ productId: string; count: number }>;
   address: Address;
   total: number;
-  payment: Payment;
-  delivery: Delivery;
   comments?: string;
 };
 
