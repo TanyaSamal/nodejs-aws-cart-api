@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/services/users.service';
-import { User } from 'src/entities/User.entity';
+import { User } from '../users/models';
 // import { contentSecurityPolicy } from 'helmet';
 type TokenResponse = {
   token_type: string;
@@ -15,31 +15,28 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(payload: User) {
-    const user = await this.usersService.findByEmail(payload.email);
+  register(payload: User) {
+    const user = this.usersService.findOne(payload.name);
 
     if (user) {
-      throw new BadRequestException('User with such email already exists');
+      throw new BadRequestException('User with such name already exists');
     }
 
-    const { id: userId } = await this.usersService.createOne(payload);
+    const { id: userId } = this.usersService.createOne(payload);
     return { userId };
   }
 
-  async validateUser(name: string, password: string): Promise<User> {
-    const user = await this.usersService.findByName(name);
+  validateUser(name: string, password: string): User {
+    const user = this.usersService.findOne(name);
 
     if (user) {
       return user;
     }
 
-    return null;
+    return this.usersService.createOne({ name, password });
   }
 
-  async login(
-    user: Partial<User>,
-    type: 'jwt' | 'basic' | 'default',
-  ): Promise<TokenResponse> {
+  login(user: User, type: 'jwt' | 'basic' | 'default'): TokenResponse {
     const LOGIN_MAP = {
       jwt: this.loginJWT,
       basic: this.loginBasic,
@@ -50,7 +47,7 @@ export class AuthService {
     return login ? login(user) : LOGIN_MAP.default(user);
   }
 
-  loginJWT(user: Partial<User>) {
+  loginJWT(user: User) {
     const payload = { username: user.name, sub: user.id };
 
     return {
@@ -59,11 +56,11 @@ export class AuthService {
     };
   }
 
-  loginBasic(user: Partial<User>) {
+  loginBasic(user: User) {
     // const payload = { username: user.name, sub: user.id };
     console.log(user);
 
-    function encodeUserToken(user: Partial<User>) {
+    function encodeUserToken(user: User) {
       const { name, password } = user;
       const buf = Buffer.from([name, password].join(':'), 'utf8');
 
